@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>即時股票行情儀表盤</title>
+    <style>
+        body{font-family:Arial,sans-serif;margin:2rem;background:#f9f9f9;}
+        #widget{max-width:800px;margin:auto;}
+        h1{font-size:1.8rem;text-align:center;margin-bottom:1rem;}
+    </style>
+</head>
+<body>
+    <h1>即時股票行情儀表盤</h1>
+    <div id="widget">
+        <!-- TradingView 小部件 – 只要改符號即可 -->
+        <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+        <script type="text/javascript">
+            new TradingView.widget({
+                "autosize": true,
+                "symbol": "NASDAQ:AAPL",          // <-- 這裡改成您想看的股票代號（如 NASDAQ:TSLA、NYSE:IBM 等）
+                "interval": "D",
+                "timezone": "Etc/UTC",
+                "theme": "light",
+                "style": "1",
+                "locale": "zh_CN",
+                "toolbar_bg": "#f1f3f6",
+                "enable_publishing": false,
+                "allow_symbol_change": true,
+                "container_id": "tradingview_5a3f"
+            });
+        </script>
+        <div id="tradingview_5a3f" style="height:600px;"></div>
+    </div>
+</body>
+</html>

@@ -2,34 +2,203 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>即時股票行情儀表盤</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>美股智能分析與實時行情儀表盤</title>
     <style>
-        body{font-family:Arial,sans-serif;margin:2rem;background:#f9f9f9;}
-        #widget{max-width:800px;margin:auto;}
-        h1{font-size:1.8rem;text-align:center;margin-bottom:1rem;}
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+        body { background-color: #0d1117; color: #c9d1d9; }
+        
+        /* 頂部導航欄 */
+        header { background: #161b22; border-bottom: 1px solid #30363d; padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .logo { font-size: 1.25rem; font-weight: bold; color: #58a6ff; display: flex; align-items: center; gap: 8px; }
+        .search-bar { display: flex; gap: 8px; }
+        .search-bar input { background: #0d1117; border: 1px solid #30363d; color: #fff; padding: 6px 14px; border-radius: 6px; outline: none; font-size: 0.9rem; width: 220px; }
+        .search-bar input:focus { border-color: #58a6ff; }
+        .search-bar button { background: #238636; color: #fff; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: 600; }
+        .search-bar button:hover { background: #2ea043; }
+
+        /* 熱門自選股快捷標籤 */
+        .watchlist { background: #161b22; padding: 8px 24px; border-bottom: 1px solid #30363d; display: flex; gap: 10px; overflow-x: auto; white-space: nowrap; }
+        .watch-btn { background: #21262d; border: 1px solid #30363d; color: #8b949e; padding: 4px 12px; border-radius: 14px; cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all 0.2s; }
+        .watch-btn:hover, .watch-btn.active { background: #388bfd26; color: #58a6ff; border-color: #58a6ff; }
+
+        /* 主內容佈局 */
+        .container { display: grid; grid-template-columns: 1fr 380px; gap: 16px; padding: 16px 24px; min-height: calc(100vh - 120px); }
+        @media (max-width: 1024px) {
+            .container { grid-template-columns: 1fr; }
+        }
+
+        .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; }
+        .card-header { padding: 10px 16px; border-bottom: 1px solid #30363d; font-weight: 600; font-size: 0.95rem; display: flex; justify-content: space-between; align-items: center; }
+        
+        .chart-box { height: 650px; }
+        .tech-box { height: 420px; }
+        .news-box { height: 480px; margin-top: 16px; }
     </style>
 </head>
 <body>
-    <h1>即時股票行情儀表盤</h1>
-    <div id="widget">
-        <!-- TradingView 小部件 – 只要改符號即可 -->
-        <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-        <script type="text/javascript">
+
+    <!-- 頂部欄 -->
+    <header>
+        <div class="logo">
+            📈 美股智能分析終端
+        </div>
+        <div class="search-bar">
+            <input type="text" id="customSymbol" placeholder="輸入美股代碼 (如 NVDA)" />
+            <button onclick="changeStock()">查看分析</button>
+        </div>
+    </header>
+
+    <!-- 快捷自選股欄 -->
+    <div class="watchlist">
+        <span style="font-size: 0.85rem; color: #8b949e; align-self: center;">🔥 核心標的：</span>
+        <button class="watch-btn active" onclick="loadStock('NASDAQ:NVDA', this)">英偉達 (NVDA)</button>
+        <button class="watch-btn" onclick="loadStock('NASDAQ:AAPL', this)">蘋果 (AAPL)</button>
+        <button class="watch-btn" onclick="loadStock('NASDAQ:TSLA', this)">特斯拉 (TSLA)</button>
+        <button class="watch-btn" onclick="loadStock('NASDAQ:MSFT', this)">微軟 (MSFT)</button>
+        <button class="watch-btn" onclick="loadStock('NASDAQ:GOOGL', this)">谷歌 (GOOGL)</button>
+        <button class="watch-btn" onclick="loadStock('NASDAQ:AMZN', this)">亞馬遜 (AMZN)</button>
+        <button class="watch-btn" onclick="loadStock('NASDAQ:AMD', this)">超微半導體 (AMD)</button>
+        <button class="watch-btn" onclick="loadStock('SP:SPX', this)">標普500 (SPY)</button>
+        <button class="watch-btn" onclick="loadStock('NASDAQ:QQQ', this)">納斯達克100 (QQQ)</button>
+    </div>
+
+    <!-- 主儀表盤 -->
+    <div class="container">
+        <!-- 左側：高級專業實時K線走勢圖 (含MACD、均線、成交量與完整畫線工具) -->
+        <div class="card">
+            <div class="card-header">
+                <span id="chartTitle">實時行情走勢與多週期技術指標</span>
+                <span style="font-size: 0.8rem; color: #8b949e;">支持分時 / 日K / 週K / 指標切換</span>
+            </div>
+            <div id="tv-chart" class="chart-box"></div>
+        </div>
+
+        <!-- 右側：技術分析多空評級 + 財經快訊 -->
+        <div>
+            <!-- 技術分析多空買賣儀表盤 -->
+            <div class="card">
+                <div class="card-header">
+                    <span>綜合技術分析評級</span>
+                    <span style="font-size: 0.8rem; color: #3fb950;">實時計算 (MA / RSI / MACD)</span>
+                </div>
+                <div id="tv-tech" class="tech-box"></div>
+            </div>
+
+            <!-- 即時市場與個股新聞 -->
+            <div class="card news-box">
+                <div class="card-header">
+                    <span>相關美股財經新聞與快訊</span>
+                </div>
+                <div id="tv-news" style="height: 100%;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TradingView 核心驅動腳本 -->
+    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+    <script type="text/javascript">
+        let currentSymbol = "NASDAQ:NVDA";
+
+        // 加載大圖 K線
+        function renderChart(symbol) {
             new TradingView.widget({
                 "autosize": true,
-                "symbol": "NASDAQ:AAPL",          // <-- 這裡改成您想看的股票代號（如 NASDAQ:TSLA、NYSE:IBM 等）
+                "symbol": symbol,
                 "interval": "D",
-                "timezone": "Etc/UTC",
-                "theme": "light",
+                "timezone": "America/New_York",
+                "theme": "dark",
                 "style": "1",
                 "locale": "zh_CN",
-                "toolbar_bg": "#f1f3f6",
+                "toolbar_bg": "#161b22",
                 "enable_publishing": false,
+                "withdateranges": true,
+                "hide_side_toolbar": false,
                 "allow_symbol_change": true,
-                "container_id": "tradingview_5a3f"
+                "details": true,
+                "hotlist": true,
+                "calendar": true,
+                "studies": [
+                    "MASimple@tv-basicstudies",
+                    "RSI@tv-basicstudies",
+                    "MACD@tv-basicstudies"
+                ],
+                "container_id": "tv-chart"
             });
-        </script>
-        <div id="tradingview_5a3f" style="height:600px;"></div>
-    </div>
+        }
+
+        // 加載右側技術買賣儀表盤
+        function renderTech(symbol) {
+            const container = document.getElementById("tv-tech");
+            container.innerHTML = "";
+            const script = document.createElement("script");
+            script.src = "https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js";
+            script.type = "text/javascript";
+            script.async = true;
+            script.innerHTML = JSON.stringify({
+                "interval": "1D",
+                "width": "100%",
+                "isTransparent": true,
+                "height": "100%",
+                "symbol": symbol,
+                "showIntervalTabs": true,
+                "displayMode": "single",
+                "locale": "zh_CN",
+                "colorTheme": "dark"
+            });
+            container.appendChild(script);
+        }
+
+        // 加載實時新聞
+        function renderNews(symbol) {
+            const container = document.getElementById("tv-news");
+            container.innerHTML = "";
+            const script = document.createElement("script");
+            script.src = "https://s3.tradingview.com/external-embedding/embed-widget-timeline.js";
+            script.type = "text/javascript";
+            script.async = true;
+            script.innerHTML = JSON.stringify({
+                "feedMode": "symbol",
+                "symbol": symbol,
+                "colorTheme": "dark",
+                "isTransparent": true,
+                "displayMode": "regular",
+                "width": "100%",
+                "height": "100%",
+                "locale": "zh_CN"
+            });
+            container.appendChild(script);
+        }
+
+        // 點擊頂部快捷標籤切換
+        function loadStock(symbol, el) {
+            currentSymbol = symbol;
+            document.querySelectorAll(".watch-btn").forEach(b => b.classList.remove("active"));
+            if (el) el.classList.add("active");
+            renderChart(symbol);
+            renderTech(symbol);
+            renderNews(symbol);
+        }
+
+        // 手動輸入股票代碼查詢
+        function changeStock() {
+            let input = document.getElementById("customSymbol").value.trim().toUpperCase();
+            if (!input) return;
+            if (!input.includes(":")) {
+                input = "NASDAQ:" + input; // 默認美股納斯達克
+            }
+            loadStock(input, null);
+        }
+
+        // 回車快速搜索
+        document.getElementById("customSymbol").addEventListener("keyup", function(e) {
+            if (e.key === "Enter") changeStock();
+        });
+
+        // 頁面初始化加載
+        window.onload = function() {
+            loadStock(currentSymbol, null);
+        };
+    </script>
 </body>
 </html>

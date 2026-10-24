@@ -1,205 +1,222 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>美股智能分析與實時行情儀表盤</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
-        body { background-color: #0d1117; color: #c9d1d9; }
-        
-        /* 頂部導航欄 */
-        header { background: #161b22; border-bottom: 1px solid #30363d; padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
-        .logo { font-size: 1.25rem; font-weight: bold; color: #58a6ff; display: flex; align-items: center; gap: 8px; }
-        .search-bar { display: flex; gap: 8px; }
-        .search-bar input { background: #0d1117; border: 1px solid #30363d; color: #fff; padding: 6px 14px; border-radius: 6px; outline: none; font-size: 0.9rem; width: 220px; }
-        .search-bar input:focus { border-color: #58a6ff; }
-        .search-bar button { background: #238636; color: #fff; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: 600; }
-        .search-bar button:hover { background: #2ea043; }
-
-        /* 熱門自選股快捷標籤 */
-        .watchlist { background: #161b22; padding: 8px 24px; border-bottom: 1px solid #30363d; display: flex; gap: 10px; overflow-x: auto; white-space: nowrap; }
-        .watch-btn { background: #21262d; border: 1px solid #30363d; color: #8b949e; padding: 4px 12px; border-radius: 14px; cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all 0.2s; }
-        .watch-btn:hover, .watch-btn.active { background: #388bfd26; color: #58a6ff; border-color: #58a6ff; }
-
-        /* 主內容佈局 */
-        .container { display: grid; grid-template-columns: 1fr 380px; gap: 16px; padding: 16px 24px; min-height: calc(100vh - 120px); }
-        @media (max-width: 1024px) {
-            .container { grid-template-columns: 1fr; }
-        }
-
-        .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; }
-        .card-header { padding: 10px 16px; border-bottom: 1px solid #30363d; font-weight: 600; font-size: 0.95rem; display: flex; justify-content: space-between; align-items: center; }
-        
-        .chart-box { height: 650px; }
-        .tech-box { height: 420px; }
-        .news-box { height: 480px; margin-top: 16px; }
-    </style>
+<meta charset="UTF-8">
+<title>美股自用看板（類似 Kolvex + WorkBuddy）</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/milligram/1.4.1/milligram.min.css">
+<style>
+  body{background:#0d1117;color:#c9d1d9;font-family:system-ui;margin:0;}
+  header{background:#161b22;padding:1rem;display:flex;justify-content:space-between;align-items:center;}
+  .logo{font-weight:bold;color:#58a6ff;}
+  .watchlist{background:#161b22;padding:0.5rem 1rem;border-bottom:1px solid #30363d;display:flex;gap:0.5rem;overflow-x:auto;}
+  .watch-btn{background:#21262d;border:1px solid #30363d;color:#8b949e;padding:0.3rem 0.8rem;border-radius:1rem;cursor:pointer;}
+  .watch-btn.active{background:#388bfd26;color:#58a6ff;border-color:#58a6ff;}
+  .container{display:grid;grid-template-columns:1fr 380px;gap:1rem;padding:1rem;}
+  @media(max-width:1024px){.container{grid-template-columns:1fr;}}
+  .card{background:#161b22;border:1px solid #30363d;border-radius:8px;overflow:hidden;display:flex;flex-direction:column;}
+  .card-header{padding:0.6rem 0.8rem;border-bottom:1px solid #30363d;font-weight:600;font-size:0.9rem;display:flex;justify-content:space-between;align-items:center;}
+  .chart-box{height:650px;}
+  .tech-box{height:420px;}
+  .news-box{height:480px;margin-top:1rem;}
+  #shareResult a{color:#58a6ff;word-break:break-all;}
+</style>
 </head>
 <body>
 
-    <!-- 頂部欄 -->
-    <header>
-        <div class="logo">
-            📈 美股智能分析終端
-        </div>
-        <div class="search-bar">
-            <input type="text" id="customSymbol" placeholder="輸入美股代碼 (如 NVDA)" />
-            <button onclick="changeStock()">查看分析</button>
-        </div>
-    </header>
+<header>
+  <div class="logo">💹 美股自用看板</div>
+  <div>
+    <input id="customSymbol" type="text" placeholder="輸入美股代碼 (如 NVDA)" style="background:#0d1117;color:#c9d1d9;border:1px solid #30363d;padding:0.3rem 0.6rem;border-radius:4px;">
+    <button id="searchBtn" style="background:#238636;color:#fff;border:none;padding:0.3rem 0.8rem;border-radius:4px;cursor:pointer;">查詢</button>
+  </div>
+</header>
 
-    <!-- 快捷自選股欄 -->
-    <div class="watchlist">
-        <span style="font-size: 0.85rem; color: #8b949e; align-self: center;">🔥 核心標的：</span>
-        <button class="watch-btn active" onclick="loadStock('NASDAQ:NVDA', this)">英偉達 (NVDA)</button>
-        <button class="watch-btn" onclick="loadStock('NASDAQ:AAPL', this)">蘋果 (AAPL)</button>
-        <button class="watch-btn" onclick="loadStock('NASDAQ:TSLA', this)">特斯拉 (TSLA)</button>
-        <button class="watch-btn" onclick="loadStock('NASDAQ:MSFT', this)">微軟 (MSFT)</button>
-        <button class="watch-btn" onclick="loadStock('NASDAQ:GOOGL', this)">谷歌 (GOOGL)</button>
-        <button class="watch-btn" onclick="loadStock('NASDAQ:AMZN', this)">亞馬遜 (AMZN)</button>
-        <button class="watch-btn" onclick="loadStock('NASDAQ:AMD', this)">超微半導體 (AMD)</button>
-        <button class="watch-btn" onclick="loadStock('SP:SPX', this)">標普500 (SPY)</button>
-        <button class="watch-btn" onclick="loadStock('NASDAQ:QQQ', this)">納斯達克100 (QQQ)</button>
+<div class="watchlist">
+  <span style="color:#8b949e;font-size:0.85rem;">快速自選：</span>
+  <button class="watch-btn active" onclick="loadStock('NASDAQ:NVDA',this)">NVDA</button>
+  <button class="watch-btn" onclick="loadStock('NASDAQ:AAPL',this)">AAPL</button>
+  <button class="watch-btn" onclick="loadStock('NASDAQ:TSLA',this)">TSLA</button>
+  <button class="watch-btn" onclick="loadStock('NASDAQ:MSFT',this)">MSFT</button>
+  <button class="watch-btn" onclick="loadStock('NYSE:IBM',this)">IBM</button>
+  <button class="watch-btn" onclick="loadStock('SP:SPX',this)">標普500</button>
+</div>
+
+<div class="container">
+  <!-- 左側圖表 -->
+  <div class="card">
+    <div class="card-header"><span id="titleChart">即時 K 線圖</span></div>
+    <div id="tvChart" class="chart-box"></div>
+  </div>
+
+  <!-- 右側技術分析 + 新聞 -->
+  <div>
+    <div class="card">
+      <div class="card-header"><span>技術分析多空評級</span></div>
+      <div id="tvTech" class="tech-box"></div>
     </div>
 
-    <!-- 主儀表盤 -->
-    <div class="container">
-        <!-- 左側：高級專業實時K線走勢圖 (含MACD、均線、成交量與完整畫線工具) -->
-        <div class="card">
-            <div class="card-header">
-                <span id="chartTitle">實時行情走勢與多週期技術指標</span>
-                <span style="font-size: 0.8rem; color: #8b949e;">支持分時 / 日K / 週K / 指標切換</span>
-            </div>
-            <div id="tv-chart" class="chart-box"></div>
-        </div>
-
-        <!-- 右側：技術分析多空評級 + 財經快訊 -->
-        <div>
-            <!-- 技術分析多空買賣儀表盤 -->
-            <div class="card">
-                <div class="card-header">
-                    <span>綜合技術分析評級</span>
-                    <span style="font-size: 0.8rem; color: #3fb950;">實時計算 (MA / RSI / MACD)</span>
-                </div>
-                <div id="tv-tech" class="tech-box"></div>
-            </div>
-
-            <!-- 即時市場與個股新聞 -->
-            <div class="card news-box">
-                <div class="card-header">
-                    <span>相關美股財經新聞與快訊</span>
-                </div>
-                <div id="tv-news" style="height: 100%;"></div>
-            </div>
-        </div>
+    <div class="card news-box">
+      <div class="card-header"><span>相關新聞快訊</span></div>
+      <div id="tvNews" style="height:100%;"></div>
     </div>
 
-    <!-- TradingView 核心驅動腳本 -->
-    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-    <script type="text/javascript">
-        let currentSymbol = "NASDAQ:NVDA";
+    <div class="card" style="margin-top:1rem;">
+      <div class="card-header"><span>生成分享鏈接（WorkBuddy 風格）</span></div>
+      <div style="padding:0.8rem;">
+        <button id="shareBtn" style="background:#238636;color:#fff;border:none;padding:0.4rem 0.8rem;border-radius:4px;cursor:pointer;">生成 Share‑Code</button>
+        <div id="shareResult" style="margin-top:0.6rem;"></div>
+      </div>
+    </div>
+  </div>
+</div>
 
-        // 加載大圖 K線
-        function renderChart(symbol) {
-            new TradingView.widget({
-                "autosize": true,
-                "symbol": symbol,
-                "interval": "D",
-                "timezone": "America/New_York",
-                "theme": "dark",
-                "style": "1",
-                "locale": "zh_CN",
-                "toolbar_bg": "#161b22",
-                "enable_publishing": false,
-                "withdateranges": true,
-                "hide_side_toolbar": false,
-                "allow_symbol_change": true,
-                "details": true,
-                "hotlist": true,
-                "calendar": true,
-                "studies": [
-                    "MASimple@tv-basicstudies",
-                    "RSI@tv-basicstudies",
-                    "MACD@tv-basicstudies"
-                ],
-                "container_id": "tv-chart"
-            });
-        }
+<!-- ==== 第三方腳本 ==== -->
+<script src="https://s3.tradingview.com/tv.js"></script>
+<script>
+/* ---------- 全局狀態 ----------
+   curSymbol：當前顯示的股票（包含交易所前綴）
+   watchButtons：所有自選按鈕列表，便於切換 active 樣式
+---------------------------------- */
+let curSymbol = 'NASDAQ:NVDA';
+const watchButtons = document.querySelectorAll('.watch-btn');
 
-        // 加載右側技術買賣儀表盤
-        function renderTech(symbol) {
-            const container = document.getElementById("tv-tech");
-            container.innerHTML = "";
-            const script = document.createElement("script");
-            script.src = "https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js";
-            script.type = "text/javascript";
-            script.async = true;
-            script.innerHTML = JSON.stringify({
-                "interval": "1D",
-                "width": "100%",
-                "isTransparent": true,
-                "height": "100%",
-                "symbol": symbol,
-                "showIntervalTabs": true,
-                "displayMode": "single",
-                "locale": "zh_CN",
-                "colorTheme": "dark"
-            });
-            container.appendChild(script);
-        }
+/* ---------- 渲染 TradingView 圖表 ----------
+   這裡使用 TradingView 官方免費小部件，無需 API Key
+------------------------------------------- */
+function renderChart(symbol){
+  new TradingView.widget({
+    autosize:true,
+    symbol:symbol,
+    interval:"D",
+    timezone:"America/New_York",
+    theme:"dark",
+    style:"1",
+    locale:"zh_CN",
+    toolbar_bg:"#161b22",
+    enable_publishing:false,
+    hide_side_toolbar:false,
+    allow_symbol_change:true,
+    studies:["MASimple@tv-basicstudies","RSI@tv-basicstudies","MACD@tv-basicstudies"],
+    container_id:"tvChart"
+  });
+}
 
-        // 加載實時新聞
-        function renderNews(symbol) {
-            const container = document.getElementById("tv-news");
-            container.innerHTML = "";
-            const script = document.createElement("script");
-            script.src = "https://s3.tradingview.com/external-embedding/embed-widget-timeline.js";
-            script.type = "text/javascript";
-            script.async = true;
-            script.innerHTML = JSON.stringify({
-                "feedMode": "symbol",
-                "symbol": symbol,
-                "colorTheme": "dark",
-                "isTransparent": true,
-                "displayMode": "regular",
-                "width": "100%",
-                "height": "100%",
-                "locale": "zh_CN"
-            });
-            container.appendChild(script);
-        }
+/* ---------- 技術分析（多空評級） ---------- */
+function renderTech(symbol){
+  const box=document.getElementById('tvTech');
+  box.innerHTML='';
+  const s=document.createElement('script');
+  s.src="https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js";
+  s.type="text/javascript"; s.async=true;
+  s.innerHTML=JSON.stringify({
+    interval:"1D",width:"100%",isTransparent:true,height:"100%",
+    symbol:symbol,showIntervalTabs:true,displayMode:"single",
+    locale:"zh_CN",colorTheme:"dark"
+  });
+  box.appendChild(s);
+}
 
-        // 點擊頂部快捷標籤切換
-        function loadStock(symbol, el) {
-            currentSymbol = symbol;
-            document.querySelectorAll(".watch-btn").forEach(b => b.classList.remove("active"));
-            if (el) el.classList.add("active");
-            renderChart(symbol);
-            renderTech(symbol);
-            renderNews(symbol);
-        }
+/* ---------- 新聞快訊 ---------- */
+function renderNews(symbol){
+  const box=document.getElementById('tvNews');
+  box.innerHTML='';
+  const s=document.createElement('script');
+  s.src="https://s3.tradingview.com/external-embedding/embed-widget-timeline.js";
+  s.type="text/javascript"; s.async=true;
+  s.innerHTML=JSON.stringify({
+    feedMode:"symbol",symbol:symbol,colorTheme:"dark",
+    isTransparent:true,displayMode:"regular",width:"100%",height:"100%",locale:"zh_CN"
+  });
+  box.appendChild(s);
+}
 
-        // 手動輸入股票代碼查詢
-        function changeStock() {
-            let input = document.getElementById("customSymbol").value.trim().toUpperCase();
-            if (!input) return;
-            if (!input.includes(":")) {
-                input = "NASDAQ:" + input; // 默認美股納斯達克
-            }
-            loadStock(input, null);
-        }
+/* ---------- 切換股票 ----------
+   會同時刷新圖表、技術分析、新聞
+----------------------------------- */
+function loadStock(symbol, btn){
+  curSymbol = symbol;
+  if(btn){
+    watchButtons.forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+  document.getElementById('titleChart').textContent = `即時 K 線圖 — ${symbol}`;
+  renderChart(symbol);
+  renderTech(symbol);
+  renderNews(symbol);
+}
 
-        // 回車快速搜索
-        document.getElementById("customSymbol").addEventListener("keyup", function(e) {
-            if (e.key === "Enter") changeStock();
-        });
+/* ---------- 手動查詢 ----------
+   輸入框允許自定義任何美股（默認 NASDAQ 前綴）
+----------------------------------- */
+document.getElementById('searchBtn').onclick = ()=>{
+  let txt=document.getElementById('customSymbol').value.trim().toUpperCase();
+  if(!txt) return;
+  if(!txt.includes(":")) txt = "NASDAQ:" + txt;   // 未寫前綴則自動加 NASDAQ
+  loadStock(txt, null);
+};
+document.getElementById('customSymbol').addEventListener('keyup', e=>{ if(e.key==='Enter') document.getElementById('searchBtn').click(); });
 
-        // 頁面初始化加載
-        window.onload = function() {
-            loadStock(currentSymbol, null);
-        };
-    </script>
+/* ---------- Share‑Code 功能 ----------
+   1. 把當前配置（symbol + 所有自選按鈕的 symbol）序列化為 JSON  
+   2. 用 `btoa`（Base64）做簡易編碼，放入 URL ?code=xxxx  
+   3. 產生的鏈接直接可分享，點開後會自動解析並還原畫面
+------------------------------------------------------- */
+function generateShareLink(){
+  // 收集自選按鈕的 symbol（active 按鈕除當前外的都算自選）
+  const watch = Array.from(watchButtons)
+                .filter(b=>b!==document.querySelector('.watch-btn.active'))
+                .map(b=>b.textContent.trim().replace(/\s*\(.*\)$/, '').replace(' ', ':'));
+  const payload = {symbol:curSymbol,watchlist:watch};
+  const encoded = btoa(JSON.stringify(payload));
+  const link = `${location.origin}${location.pathname}?code=${encoded}`;
+  const out=document.getElementById('shareResult');
+  out.innerHTML = `分享鏈接：<a href="${link}" target="_blank">${link}</a>`;
+}
+
+/* 點擊生成按鈕 */
+document.getElementById('shareBtn').onclick = generateShareLink;
+
+/* ---------- 讀取 ?code=xxxx ----------
+   頁面載入時若 URL 含有 code，會解析並自動還原配置
+------------------------------------------- */
+function applySharedConfig(encoded){
+  try{
+    const payload = JSON.parse(atob(encoded));
+    if(payload.symbol) loadStock(payload.symbol, null);
+    // 重新渲染自選按鈕（先把全部按鈕設為非 active，再根據 watchlist 加 active）
+    watchButtons.forEach(b=>b.classList.remove('active'));
+    // 把 payload.watchlist 中的每一項映射回按鈕（若按鈕不存在則動態創建）
+    payload.watchlist?.forEach(sym=>{
+      const txt = sym.replace('NASDAQ:','').replace('NYSE:','').replace('SP:','');
+      let btn = Array.from(watchButtons).find(b=>b.textContent.includes(txt));
+      if(!btn){
+        // 動態新增一個自選按鈕
+        btn = document.createElement('button');
+        btn.className='watch-btn';
+        btn.textContent = txt;
+        btn.onclick = ()=>loadStock(sym, btn);
+        document.querySelector('.watchlist').appendChild(btn);
+      }
+      btn.classList.add('active');
+    });
+  }catch(e){
+    console.warn('Invalid share code');
+  }
+}
+
+/* ---------- 初始化 ----------
+   1. 若有 ?code= 直接還原
+   2. 否則根據預設的 NVDA 加載
+------------------------------------- */
+window.onload = ()=>{
+  const params = new URLSearchParams(location.search);
+  if(params.has('code')){
+    applySharedConfig(params.get('code'));
+  }else{
+    loadStock(curSymbol, document.querySelector('.watch-btn.active'));
+  }
+};
+</script>
 </body>
 </html>
-
